@@ -3,8 +3,12 @@
 (executables 
     (names zrun)
     (modes byte exe)
-    (promote (until-clean) (into ..)))	
-	     
+    (promote (until-clean) (into ..))
+    (flags
+         (:standard
+               -open Base -open Interpreter -open Analyzer))
+    (libraries interpreter base analyzer))
+
 (ocamllex (modules lexer))
 (menhir (modules parser)) ;;(flags --explain))
 
