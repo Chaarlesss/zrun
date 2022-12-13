@@ -1,6 +1,7 @@
 
 (library
-  (name ibase))
+  (name ibase)
+  (libraries base))
 
 (env
   (dev

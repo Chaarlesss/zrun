@@ -1,6 +1,6 @@
 open Ast
 
-module type DOMAIN =
+module type S =
 sig
   type t
 
