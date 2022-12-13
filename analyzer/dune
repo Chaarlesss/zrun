@@ -3,8 +3,8 @@
  (name analyzer)
  (flags
   (:standard
-    -open Base))
- (libraries base))
+    -open Ibase -open Base))
+ (libraries ibase base))
 
 (include_subdirs unqualified)
 

@@ -3,8 +3,8 @@
  (name interpreter)
  (flags
   (:standard
-    -open Base))
- (libraries base))
+    -open Ibase))
+ (libraries ibase))
 
 (env
  (dev

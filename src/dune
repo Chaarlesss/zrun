@@ -6,8 +6,8 @@
     (promote (until-clean) (into ..))
     (flags
          (:standard
-               -open Base -open Interpreter -open Analyzer))
-    (libraries interpreter base analyzer))
+               -open Ibase -open Interpreter -open Analyzer))
+    (libraries interpreter ibase analyzer))
 
 (ocamllex (modules lexer))
 (menhir (modules parser)) ;;(flags --explain))

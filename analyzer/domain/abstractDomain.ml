@@ -1,6 +1,6 @@
 open Ast
 
-module type S =
+module type DOMAIN =
 sig
   type t
 
@@ -9,6 +9,8 @@ sig
   val top: t
 
   val is_bottom: t -> bool
+
+  val is_top: t -> bool
 
   val is_subset: t -> t -> bool
 
@@ -22,4 +24,6 @@ sig
 
   (* when an assert is called *)
   val check: exp -> t -> t
+
+  val pp: Formatter.t -> t -> unit
 end
