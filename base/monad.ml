@@ -207,3 +207,17 @@ struct
       return (acc, s :: s_list)
     | _ -> error with_error
 end
+
+module List = struct
+  open Result
+  include Base.List
+
+  let rec map_result x_list ~f : ('b list, 'c) Result.t =
+    match x_list with
+    | [] -> Result.return []
+    | x :: x_list ->
+      let* xv = f x in
+      let* x_list = map_result x_list ~f in
+      Result.return (xv :: x_list)
+
+end

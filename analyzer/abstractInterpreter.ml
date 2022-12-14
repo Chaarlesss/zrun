@@ -6,29 +6,29 @@ open AbstractValue
 
 module Make(D: AbstractDomain.S) = struct
 
-  let rec iexp denv env { e_desc; e_loc } =
+  let rec iexp genv env { e_desc; e_loc } =
     match e_desc with
     | Econst _ | Econstr0 _ | Elocal _ | Eglobal _ | Elast _ ->
       failwith "error stateless"
     | Eop(op, e_list) ->
       begin match op, e_list with
         | Efby, [{ e_desc = Econst(v) }; e] ->
-          let s = iexp denv env e in
+          let s = iexp genv env e in
           assert false
         | _ -> failwith "error op"
       end
     | _ -> assert false
 
-  and ieq denv env { eq_desc; eq_loc }: ('a, 'b) Result.t =
+  and ieq genv env { eq_desc; eq_loc }: ('a, 'b) Result.t =
     match eq_desc with
-    | EQeq(_, e) -> iexp denv env e
+    | EQeq(_, e) -> iexp genv env e
     | _ -> assert false
 
-  and ivardec denv env { var_default; var_loc } =
+  and ivardec genv env { var_default; var_loc } =
     match var_default with
     | Ewith_init(e) ->
       assert false
-    | Ewith_default(e) -> iexp denv env e
+    | Ewith_default(e) -> iexp genv env e
     | Ewith_nothing -> assert false
     | Ewith_last -> assert false
 
@@ -49,9 +49,9 @@ module Make(D: AbstractDomain.S) = struct
     in
     aux env f_res return_idents
 
-  let funexp denv { f_kind; f_atomic; f_args; f_res; f_body; f_loc } =
+  let funexp genv { f_kind; f_atomic; f_args; f_res; f_body; f_loc } =
     (* ieq should return a function from the denv to another env *)
-    let* si = ieq denv D.top f_body in
+    let* si = ieq genv D.top f_body in
     let f = match f_kind with
       | Efun ->
         (* combinatorial function *)
@@ -76,6 +76,8 @@ module Make(D: AbstractDomain.S) = struct
              ))
       | Enode ->
         (* stateful function *)
+        let* s_f_args = List.map_result ~f:(ivardec genv) f_args in
+        let* s_f_res = List.map_result ~f:(ivardec genv) f_res in
         return
           (ACoNode
              {

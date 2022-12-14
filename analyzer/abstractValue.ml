@@ -1,5 +1,4 @@
 open Ast
-open Alarm
 
 let num_node = ref 0
 let fresh_node = num_node := !num_node + 1; !num_node
@@ -15,9 +14,9 @@ let return_idents =
   aux 10 []
 
 (* 'a = abstract input element, 'b = abstract output element, 'c = node args, 's internal state *)
-type ('a, 'b, 'c, 's) node =
-  | ACoFun : ('a -> 'c -> ('b, analyzer_error) Result.t) -> ('a, 'b, 'c, 's) node
+type ('a, 'b, 'c, 's, 'e) node =
+  | ACoFun : ('a -> 'c -> ('b, 'e) Result.t) -> ('a, 'b, 'c, 's, 'e) node
   | ACoNode : {
-      init: ('a -> (('b * 's), analyzer_error) Result.t);
-      step: ('s -> 'a -> 'c -> ('b, analyzer_error) Result.t)
-    } -> ('a, 'b, 'c, 's) node
+      init: ('a -> (('b * 's), 'e) Result.t);
+      step: ('s -> 'a -> 'c -> ('b, 'e) Result.t)
+    } -> ('a, 'b, 'c, 's, 'e) node

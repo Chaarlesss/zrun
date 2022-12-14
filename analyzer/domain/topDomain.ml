@@ -1,5 +1,6 @@
 open Ast
 open Ibase.Monad.Result
+open Alarm
 
 type t = Top
 
