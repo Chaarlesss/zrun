@@ -30,4 +30,19 @@ let source = function
   | Modname(qualid) -> qualid.id
 
 let fprint_t ff id = Format.fprintf ff "%s" (modname id)
-      
+
+type t_alias = t
+
+module M = struct
+  module T = struct
+    type t = t_alias
+
+    let compare = compare
+    let fprint ff id = Format.fprintf ff "%s" (modname id)
+
+    let sexp_of_t id =
+      Sexplib0.Sexp.message "" []
+  end
+  include T
+  include Base.Comparable.Make(T)
+end

@@ -220,4 +220,13 @@ module List = struct
       let* x_list = map_result x_list ~f in
       Result.return (xv :: x_list)
 
+  let rec mapfold3_result x_list y_list z_list ~f ~init:acc ~error =
+    match x_list, y_list, z_list with
+    | [], [], [] -> Result.return (acc, [])
+    | x :: x_list, y :: y_list, z :: z_list ->
+      let* acc, s = f acc x y z in
+      let* acc, s_list = mapfold3_result ~f ~init:acc ~error x_list y_list z_list in
+      Result.return (acc, s :: s_list)
+    | _ -> fail error
+
 end
