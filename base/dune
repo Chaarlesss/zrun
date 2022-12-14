@@ -1,7 +1,7 @@
 
 (library
   (name ibase)
-  (libraries base))
+  (libraries base ppx_let))
 
 (env
   (dev

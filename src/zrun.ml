@@ -35,7 +35,7 @@ let parse parsing_fun lexing_fun source_name =
   try
     parsing_fun lexing_fun lexbuf
   with
-  | Lexer.Lexical_error(err, loc) ->
+  | Zrun_lexer.Lexical_error(err, loc) ->
     close_in ic; lexical_error err loc
   | Parser.Error ->
     close_in ic;
@@ -43,7 +43,7 @@ let parse parsing_fun lexing_fun source_name =
       (Loc(Lexing.lexeme_start lexbuf, Lexing.lexeme_end lexbuf))
 
 let parse_implementation_file source_name =
-  parse Parser.implementation_file Lexer.main source_name
+  parse Zrun_parser.implementation_file Zrun_lexer.main source_name
 
 let analyze p main =
   let open Result in

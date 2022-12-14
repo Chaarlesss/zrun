@@ -127,7 +127,7 @@ end
 
 module Result =
 struct
-  open Base.Result
+  include Base.Result
   (* [let* x = e in f x] *)
   let (let*) e f =
     match e with

@@ -1,7 +1,7 @@
 open Ast
 open Alarm
 open Result
-
+(*
 type el_label = int
 
 type ast_unary_op
@@ -49,7 +49,8 @@ let rec generate_funexp eq_trans { f_kind; f_atomic; f_args; f_res; f_body; f_lo
   (* we verify that each input and output variables are already defined in the map *)
   let valid_signature =
     let variables = List.concat_no_order [f_args; f_res] in
-    let results = List.map
+    let results =
+      List.map
         ~f:
           (fun el ->
              if not (Map.mem args_names el.var_name) then
@@ -61,18 +62,8 @@ let rec generate_funexp eq_trans { f_kind; f_atomic; f_args; f_res; f_body; f_lo
     in
     all_unit results
   in
-  (* will be used for function's calls *)
-  (*let args_names =
-    List.fold
-      ~init:args_names
-      ~f:(fun acc el ->
-          let data = fresh_label eq_trans in
-          Map.set acc ~key:el.var_name ~data
-        )
-      f_args
-    in**)
   valid_signature >>=
-  generate_eq eq_trans f_body args_names
+  (fun _ -> generate_eq eq_trans f_body args_names)
 
 and generate_eq eq_trans { eq_desc; eq_write; eq_loc } vars_id =
   (* we shadow the variables which are already defined in the map, but it is intended !*)
@@ -106,3 +97,4 @@ let generate { desc; loc } = match desc with
       in
       generate_funexp eq_trans funexp vars_id
   | Etypedecl (_, _) -> return []
+*)

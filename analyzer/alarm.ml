@@ -3,16 +3,17 @@ open Ast
 open Result
 
 type analyzer_error =
+  | Generic_alarm
   | Invalid_main of name
   | Invalid_args_size
 
-let alarm (error: analyzer_error) loc =
-  fail { desc= error; loc }
+let localize el loc =
+  { desc= el; loc }
 
-let report r_opt =
+let report loc r_opt =
   if !set_verbose then
     match r_opt with
-    | Error { desc; loc } ->
+    | Error  desc ->
       Caml.Format.eprintf "%aTyping error.@."
         Location.output_location loc;
       raise Stdlib.Exit

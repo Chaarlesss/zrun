@@ -9,8 +9,8 @@
                -open Ibase -open Interpreter -open Analyzer))
     (libraries interpreter ibase analyzer))
 
-(ocamllex (modules lexer))
-(menhir (modules parser)) ;;(flags --explain))
+(ocamllex (modules zrun_lexer))
+(menhir (modules zrun_parser)) ;;(flags --explain))
 
 (env
  (dev

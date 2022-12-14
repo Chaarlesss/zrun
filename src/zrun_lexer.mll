@@ -15,7 +15,7 @@
 
 {
 open Lexing
-open Parser
+open Zrun_parser
 open Location
 
 type lexical_error =
