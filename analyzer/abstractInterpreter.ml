@@ -12,9 +12,29 @@ module Make(D: AbstractDomain.S) = struct
     | Some(Gfun(f)) -> return f
     | _ -> failwith ("unknown node : " ^ (Lident.modname x))
 
-  (* find a solution to check causality *)
-  let fixpoint_eq genv d_el sem eq n s_eq =
-    assert false
+  let fixpoint n stop f s bot =
+    let rec fixpoint n d_el =
+      if n <= 0 then
+        return (0, d_el)
+      else
+        let* d_el' = f s d_el in
+        (* d_el' = f(s)(d_el) subset of d_el ? f(s) is supposed to be monotone, so if f(s)(x) <= x then x = f(s)(x) *)
+        let* guard = stop d_el' d_el in
+        if guard then return (n, d_el') else fixpoint (n - 1) d_el'
+    in
+    fixpoint n bot
+
+  (* find a solution to the set of equation *)
+  (* be carefull with this fixpoint solver: it assumes that the equations is well formed in the concrete *)
+  let fixpoint_eq genv d_el sem eq n s_eq bot =
+    let sem s_eq d_el_in =
+      let* d_el = D.join d_el_in d_el in
+      (* j'ai pas tout compris avec le complete_with_default *)
+      sem genv d_el eq s_eq
+    in
+    (* TODO: add some debug around here *)
+    let* m, d_el_out = fixpoint n D.is_subset sem s_eq bot in
+    return d_el_out
 
   let rec iexp genv { e_desc; e_loc } =
     let r = match e_desc with
@@ -133,22 +153,22 @@ module Make(D: AbstractDomain.S) = struct
         (* combinatorial function *)
         return
           (ACoFun
-             (fun env exp_list ->
-                let* env =
+             (fun d_el exp_list ->
+                let* d_el =
                   Result.fold2
                     Invalid_args_size
                     declare_arg
-                    env f_args exp_list
+                    d_el f_args exp_list
                 in
                 (* TODO: seq *)
-                let* env = mk_return env f_res f_loc in
-                let* env =
+                let* d_el = mk_return d_el f_res f_loc in
+                let* d_el =
                   List.fold_result
-                    ~init:env
+                    ~init:d_el
                     ~f:remove_arg
-                    f_res
+                    (List.append f_args f_res)
                 in
-                return env
+                return d_el
              ))
       | Enode ->
         (* stateful function *)
@@ -158,26 +178,30 @@ module Make(D: AbstractDomain.S) = struct
           (ACoNode
              {
                init =
-                 (fun env ->
-                    let* env, s_f_args =
+                 (fun d_el ->
+                    let* d_el, s_f_args =
                       List.fold_result
-                        ~f:(fun (env, l) s ->
-                            let* env, h = s env in
-                            return (env, h :: l)
+                        ~init:(d_el, [])
+                        ~f:(fun (d_el, l) s ->
+                            let* d_el, h = s d_el in
+                            return (d_el, h :: l)
                           )
-                        ~init:(env, []) s_f_args
+                        s_f_args
                     in
-                    let* env, s_f_res =
+                    let s_f_args = List.rev s_f_args in
+                    let* d_el, s_f_res =
                       List.fold_result
-                        ~f:(fun (env, l) s ->
-                            let* env, h = s env in
-                            return (env, h :: l)
+                        ~init:(d_el, [])
+                        ~f:(fun (d_el, l) s ->
+                            let* d_el, h = s d_el in
+                            return (d_el, h :: l)
                           )
-                        ~init:(env, []) s_f_res
+                        s_f_res
                     in
-                    let* env, si = si env in
+                    let s_f_res = List.rev s_f_res in
+                    let* d_el, si = si d_el in
                     return
-                      (env, AStuple [AStuple s_f_args; AStuple s_f_res; si])
+                      (d_el, AStuple [AStuple s_f_args; AStuple s_f_res; si])
                  );
                step =
                  (fun s d_el exp_list ->
@@ -189,10 +213,11 @@ module Make(D: AbstractDomain.S) = struct
                           ~f:(svardec genv)
                           f_args s_f_args exp_list
                       in
+                      (* initialize s_f_res depending on what is stored in the state *)
                       (*let* d_body, s_body =
                         fixpoint_eq genv d_el seq f_body n s_body
                         in*)
-                      failwith "à implémenter"
+                      failwith "a implementer"
                     | _ -> fail Generic_alarm
                  )
              })
@@ -222,7 +247,8 @@ module Make(D: AbstractDomain.S) = struct
       if i = n then i
       else
         let v =
-          let* d_el = step s d_el [] in
+          let* sd_el = step s d_el [] in
+          let* d_el = D.join d_el sd_el in
           let* _ = output d_el in
           return s in
         match v with

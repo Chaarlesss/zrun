@@ -37,4 +37,4 @@ type ('a, 'b, 'c, 's, 'e) anode =
     } -> ('a, 'b, 'c, 's, 'e) anode
 
 type 'a gvalue =
-  | Gfun : ('a, 'a, exp list, astate, analyzer_error) anode -> 'a gvalue
+  | Gfun : ('a, 'a, exp list, astate, analyzer_alarm) anode -> 'a gvalue

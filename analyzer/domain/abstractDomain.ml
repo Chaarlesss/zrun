@@ -13,19 +13,20 @@ sig
 
   val is_top: t -> bool
 
-  val is_subset: t -> t -> (bool, analyzer_error) Result.t
+  val is_subset: t -> t -> (bool, analyzer_alarm) Result.t
 
-  val join: t -> t -> (t, analyzer_error) Result.t
+  val join: t -> t -> (t, analyzer_alarm) Result.t
 
-  val meet: t -> t -> (t, analyzer_error) Result.t
+  val meet: t -> t -> (t, analyzer_alarm) Result.t
 
-  val guard: exp -> t -> (t, analyzer_error) Result.t
+  val guard: exp -> t -> (t, analyzer_alarm) Result.t
 
-  val assign: Ident.t list -> exp -> t -> (t, analyzer_error) Result.t
+  val assign: Ident.t list -> exp -> t -> (t, analyzer_alarm) Result.t
 
-  val remove: Ident.t list -> t -> (t, analyzer_error) Result.t
+  val remove: Ident.t list -> t -> (t, analyzer_alarm) Result.t
+
   (* when an assert is called *)
-  val check: exp -> t -> (t, analyzer_error) Result.t
+  val check: exp -> t -> (t, analyzer_alarm) Result.t
 
   val pp: Formatter.t -> t -> unit
 end
