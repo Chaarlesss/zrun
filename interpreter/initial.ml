@@ -12,10 +12,10 @@
 (* *********************************************************************)
 
 open Value
-open Monad
+module Opt = Monad.Opt
 open Opt
 open Lident
-   
+
 module Genv = Map.Make(Lident)
 
 let bool v =
@@ -62,7 +62,7 @@ let minus_op v1 v2 =
   let* v1 = int v1 in
   let* v2 = int v2 in
   return (Vint(v1 - v2))
-    
+
 let mult_op v1 v2 =
   let* v1 = int v1 in
   let* v2 = int v2 in
@@ -92,7 +92,7 @@ let lte_op v1 v2 =
 
 let gte_op v1 v2 =
   return (Vbool(v1 >= v2))
-  
+
 let geti i v =
   let rec geti i v_list =
     match v_list with
@@ -102,10 +102,10 @@ let geti i v =
   | Vbot -> return Vbot
   | Vnil -> return Vnil
   | Value(v) ->
-     match v with
-     | Vtuple(v_list) -> if i >= 0 then geti i v_list else None
-     | _ -> None
-          
+    match v with
+    | Vtuple(v_list) -> if i >= 0 then geti i v_list else None
+    | _ -> None
+
 (* ifthenelse *)
 let ifthenelse v1 v2 v3 =
   match v1, v2, v3 with
@@ -113,15 +113,15 @@ let ifthenelse v1 v2 v3 =
   | (Vnil, Vbot, _) | (Vnil, _, Vbot) -> return Vbot
   | Vnil, _, _ -> return Vnil
   | (Value(v1), _, _)  -> ifthenelse_op v1 v2 v3
-                 
+
 (* lift a unary operator: [op bot = bot]; [op nil = nil] *)
 let lift1 op v =
   match v with
   | Vbot -> return Vbot
   | Vnil -> return Vnil
   | Value(v) ->
-     let* v = op v in
-     return (Value v)
+    let* v = op v in
+    return (Value v)
 
 (* lift a binary operator: [op bot _ = bot]; [op _ bot = bot]; same for nil *)
 let lift2 op v1 v2 =
@@ -131,8 +131,8 @@ let lift2 op v1 v2 =
   | Vnil, _ -> return Vnil
   | _, Vnil -> return Vnil
   | Value(v1), Value(v2) ->
-     let* v = op v1 v2 in
-     return (Value v)
+    let* v = op v1 v2 in
+    return (Value v)
 
 (* pairs and tuples *)
 let unbot v1 v2 = 
@@ -144,28 +144,28 @@ let rec unbot_list v_list =
   match v_list with
   | [] -> return []
   | [v] -> let* v = match v with | Vbot -> None | _ -> Some([v]) in
-           return v
+    return v
   | v1 :: v2 :: v_list ->
-     let* v_list = unbot_list v_list in
-     match unbot v1 v2 with
-     | None -> None
-     | Some(v1, v2) -> return (v1 :: v2 :: v_list)
+    let* v_list = unbot_list v_list in
+    match unbot v1 v2 with
+    | None -> None
+    | Some(v1, v2) -> return (v1 :: v2 :: v_list)
 
 let unnil v1 v2 = 
   match v1, v2 with
   | (Vnil, _) | (_, Vnil) -> None
   | _ -> Some (v1, v2)
- 
+
 let rec unnil_list v_list =
   match v_list with
   | [] -> return []
   | [v] -> let* v = match v with | Vnil -> None | _ -> Some([v]) in
-           return v
+    return v
   | v1 :: v2 :: v_list ->
-     let* v_list = unnil_list v_list in
-     match unnil v1 v2 with
-     | None -> None
-     | Some(v1, v2) -> return (v1 :: v2 :: v_list)
+    let* v_list = unnil_list v_list in
+    match unnil v1 v2 with
+    | None -> None
+    | Some(v1, v2) -> return (v1 :: v2 :: v_list)
 
 (* builds a pair. If one is bot, the result is bot; if one is nil, *)
 (* the result is nil *)
@@ -174,37 +174,37 @@ let strict_pair v1 v2 =
   match v with
   | None -> Vbot
   | Some(v1, v2) ->
-     let v = unnil v1 v2 in
-     match v with
-     | None -> Vnil
-     | Some(v1, v2) -> Value(Vtuple [v1; v2])
-                     
+    let v = unnil v1 v2 in
+    match v with
+    | None -> Vnil
+    | Some(v1, v2) -> Value(Vtuple [v1; v2])
+
 let strict_tuple v_list =
   let v = unbot_list v_list in
   match v with
   | None -> Vbot
   | Some(v_list) ->
-     let v = unnil_list v_list in
-     match v with
-     | None -> Vnil
-     | Some(v_list) -> Value(Vtuple(v_list))
+    let v = unnil_list v_list in
+    match v with
+    | None -> Vnil
+    | Some(v_list) -> Value(Vtuple(v_list))
 
 let strict_constr1 f v_list =
   let v = unbot_list v_list in
   match v with
   | None -> Vbot
   | Some(v_list) ->
-     let v = unnil_list v_list in
-     match v with
-     | None -> Vnil
-     | Some(v_list) -> Value(Vconstr1(f, v_list))
+    let v = unnil_list v_list in
+    match v with
+    | None -> Vnil
+    | Some(v_list) -> Value(Vconstr1(f, v_list))
 
 let tuple v_list =
   match v_list with
   | [] -> None
   | [v] -> return v
   | _ -> return (Value(Vtuple(v_list)))
-      
+
 
 (* check that v is an empty list *)
 let zero v =
@@ -223,7 +223,7 @@ let two v =
   match v with
   | [v1;v2] -> return (v1, v2)
   | _ -> None
-       
+
 let zerop op =
   CoFun (fun v -> let* _ = zero v in let* v = op () in return [Value v])
 
@@ -240,17 +240,17 @@ let unop_process op s =
     { init = s;
       step =
         fun s (_: value list) ->
-        let* v = op s in
-        return ([v], s) }
+          let* v = op s in
+          return ([v], s) }
 
 let binop_process op s =
   CoNode
     { init = s;
       step =
         fun s v ->
-        let* v = one v in
-        let* v = lift1 (op s) v in
-        return ([v], s) }
+          let* v = one v in
+          let* v = lift1 (op s) v in
+          return ([v], s) }
 
 (* The initial environment *)
 let genv0 =
@@ -275,7 +275,7 @@ let genv0 =
 let genv0 =
   List.fold_left
     (fun acc (n, v) -> Genv.add (Name n) (Gfun v) acc) Genv.empty genv0
-  
+
 let _ = Random.init 0
 
 let random_bool_op () = return (Vbool(Random.bool()))
@@ -285,7 +285,7 @@ let random_int_op v =
 let random_float_op v =
   let* v = float v in
   return (Vfloat(Random.float v))
-    
+
 let genv1 =
   ["random_bool", zerop random_bool_op;
    "random_int", unop random_int_op;

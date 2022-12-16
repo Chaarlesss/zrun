@@ -21,19 +21,19 @@ type 'a localized = { desc: 'a; loc: Location.t }
 
 (* constants *)
 type const =
-| Eint : int -> const
-| Ebool : bool -> const
-| Efloat : float -> const
-| Evoid : const
-| Estring : string -> const
-| Echar : char -> const
+  | Eint : int -> const
+  | Ebool : bool -> const
+  | Efloat : float -> const
+  | Evoid : const
+  | Estring : string -> const
+  | Echar : char -> const
 
 (* synchronous operators *)
 type operator =
-| Efby : operator
-| Eifthenelse : operator
-| Eminusgreater : operator
-| Eunarypre : operator
+  | Efby : operator
+  | Eifthenelse : operator
+  | Eminusgreater : operator
+  | Eunarypre : operator
 
 type pateq = pateq_desc localized
 
@@ -55,7 +55,7 @@ type pattern = pattern_desc localized
 
 and pattern_desc = 
   | Econstr0pat : Lident.t -> pattern_desc
-  
+
 type statepatdesc =
   | Estate0pat : Ident.t -> statepatdesc 
   | Estate1pat : Ident.t * Ident.t list -> statepatdesc
@@ -76,7 +76,7 @@ type ('scondpat, 'exp, 'body) escape =
     e_next_state: 'exp state_exp;
     e_loc: Location.t;
   }
-                           
+
 type ('exp, 'body) match_handler =
   { m_pat : pattern;
     m_vars: 'exp vardec list;
@@ -108,9 +108,9 @@ and exp_desc =
   | Etuple : exp list -> exp_desc 
   | Eapp : Lident.t * exp list -> exp_desc 
   | Elet : is_rec * eq * exp -> exp_desc 
-  
+
 and is_rec = bool
-           
+
 and eq =
   { eq_desc: eq_desc; (* descriptor *)
     eq_write: S.t; (* set of defined variables *)
@@ -127,7 +127,7 @@ and eq_desc =
   | EQmatch : exp * (exp, eq) match_handler list -> eq_desc
   | EQempty : eq_desc
   | EQassert : exp -> eq_desc
-  
+
 and kind =
   | Efun : kind
   | Enode : kind
@@ -152,14 +152,14 @@ and implementation_desc =
   | Eletdecl : name * exp -> implementation_desc
   | Eletfundecl : name * funexp -> implementation_desc
   | Etypedecl : name * type_decl -> implementation_desc
-  
+
 and type_decl = type_decl_desc localized
-              
+
 and type_decl_desc =
   | Evariant_type : constr_decl list -> type_decl_desc
-                   
+
 and constr_decl = constr_decl_desc localized
-    
+
 and constr_decl_desc =
   | Econstr0decl : name -> constr_decl_desc
 

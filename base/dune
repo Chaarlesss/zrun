@@ -1,0 +1,8 @@
+
+(library
+  (name ibase)
+  (libraries base ppx_let))
+
+(env
+  (dev
+    (flags (:standard -w -9-27-32-33-35 -warn-error -A))))

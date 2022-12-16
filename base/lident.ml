@@ -11,23 +11,38 @@
 (*                                                                     *)
 (* *********************************************************************)
 
-let main_node = ref (None: string option)
-let set_main s = main_node := Some(s)
+type t =
+  | Name : string -> t
+  | Modname : qualident -> t
 
-let set_check = ref false
-              
-let number_of_steps = ref 0
-let set_number_of_steps n = number_of_steps := n
+and qualident = { qual : string; id: string }
 
-let number_of_fixpoint_iterations = ref 0
-let print_number_of_fixpoint_iterations = ref false
-let incr_number_of_fixpoint_iterations n =
-  number_of_fixpoint_iterations := !number_of_fixpoint_iterations + n
-let reset_number_of_fixpoint_iterations () = number_of_fixpoint_iterations := 0
-                          
-let no_assert = ref false
+let compare = compare
 
-let set_verbose = ref false
+let qualidname { qual = m; id = id } = m ^ "." ^ id
 
-let set_nocausality = ref false
+let modname = function
+  | Name(n) -> n
+  | Modname(qualid) -> qualidname qualid
 
+let source = function
+  | Name(n) -> n
+  | Modname(qualid) -> qualid.id
+
+let fprint_t ff id = Format.fprintf ff "%s" (modname id)
+
+type t_alias = t
+
+module M = struct
+  module T = struct
+    type t = t_alias
+
+    let compare = compare
+    let fprint ff id = Format.fprintf ff "%s" (modname id)
+
+    let sexp_of_t id =
+      Sexplib0.Sexp.message "" []
+  end
+  include T
+  include Base.Comparable.Make(T)
+end

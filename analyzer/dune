@@ -1,0 +1,13 @@
+
+(library
+ (name analyzer)
+ (flags
+  (:standard
+    -open Ibase -open Base))
+ (libraries ibase base))
+
+(include_subdirs unqualified)
+
+(env
+ (dev
+  (flags (:standard -w -9-27-32-33-35 -warn-error -A))))

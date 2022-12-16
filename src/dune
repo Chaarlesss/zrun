@@ -3,10 +3,14 @@
 (executables 
     (names zrun)
     (modes byte exe)
-    (promote (until-clean) (into ..)))	
-	     
-(ocamllex (modules lexer))
-(menhir (modules parser)) ;;(flags --explain))
+    (promote (until-clean) (into ..))
+    (flags
+         (:standard
+               -open Ibase -open Interpreter -open Analyzer))
+    (libraries interpreter ibase analyzer))
+
+(ocamllex (modules zrun_lexer))
+(menhir (modules zrun_parser)) ;;(flags --explain))
 
 (env
  (dev

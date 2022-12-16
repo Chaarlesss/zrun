@@ -16,53 +16,54 @@
 
 open Parsetree
 open Ident
-open Monad
+module Opt = Monad.Opt
 open Opt
+module Misc = Monad.Misc
 
 exception Error
-        
+
 module Error =
-  struct
-    type error =
-      | Evar of string
-      | Enon_linear_pat of string
-      | Enon_linear_automaton of string
-      | Eautomaton_with_mixed_transitions
-                           
-    exception Err of Location.t * error
-                     
-    let error loc kind = raise (Err(loc, kind))
-                       
-    let message loc kind =
-      begin match kind with
+struct
+  type error =
+    | Evar of string
+    | Enon_linear_pat of string
+    | Enon_linear_automaton of string
+    | Eautomaton_with_mixed_transitions
+
+  exception Err of Location.t * error
+
+  let error loc kind = raise (Err(loc, kind))
+
+  let message loc kind =
+    begin match kind with
       | Evar(name) ->
-         Format.eprintf "%aScoping error: The value identifier %s is unbound.@."
-           Location.output_location loc name
+        Format.eprintf "%aScoping error: The value identifier %s is unbound.@."
+          Location.output_location loc name
       | Enon_linear_pat(name) ->
-          Format.eprintf "%aScoping error: The variable %s is bound several \
-                     times in this pattern.@."
-            Location.output_location loc name
+        Format.eprintf "%aScoping error: The variable %s is bound several \
+                        times in this pattern.@."
+          Location.output_location loc name
       | Enon_linear_automaton(name) ->
-          Format.eprintf
-            "%aScoping error: the state %s is defined several times in \
-               this automaton.@."
-            Location.output_location loc name
+        Format.eprintf
+          "%aScoping error: the state %s is defined several times in \
+           this automaton.@."
+          Location.output_location loc name
       | Eautomaton_with_mixed_transitions ->
-	 Format.eprintf
-	   "%aScoping error: this automaton mixes weak and strong transitions.@."
-	   Location.output_location loc
-      end;
-      raise Error 
+        Format.eprintf
+          "%aScoping error: this automaton mixes weak and strong transitions.@."
+          Location.output_location loc
+    end;
+    raise Error
 end
 
 module Env =
-  struct
-    include Map.Make(String)
+struct
+  include Map.Make(String)
 
-    let append env0 env =
-      fold (fun x v acc -> update x (function _ -> Some(v)) acc)
-        env0 env
-  end
+  let append env0 env =
+    fold (fun x v acc -> update x (function _ -> Some(v)) acc)
+      env0 env
+end
 
 module S = Set.Make (String)
 
@@ -72,27 +73,27 @@ let rec buildeq defnames { desc } =
   | EQeq(pat, _) -> buildpat defnames pat
   | EQreset(eq, _) -> buildeq defnames eq
   | EQand(and_eq_list) ->
-     List.fold_left buildeq defnames and_eq_list
+    List.fold_left buildeq defnames and_eq_list
   | EQlocal(v_list, eq) ->
-     let defnames_v_list = List.fold_left build_vardec S.empty v_list in
-     let defnames_eq = buildeq S.empty eq in
-     S.union defnames (S.diff defnames_eq defnames_v_list)
+    let defnames_v_list = List.fold_left build_vardec S.empty v_list in
+    let defnames_eq = buildeq S.empty eq in
+    S.union defnames (S.diff defnames_eq defnames_v_list)
   | EQif(_, eq1, eq2) ->
-     let defnames = buildeq defnames eq1 in
-     buildeq defnames eq2
+    let defnames = buildeq defnames eq1 in
+    buildeq defnames eq2
   | EQmatch(_, m_h_list) ->
-     List.fold_left build_match_handler defnames m_h_list
+    List.fold_left build_match_handler defnames m_h_list
   | EQautomaton(a_h_list) ->
-     List.fold_left build_automaton_handler defnames a_h_list
+    List.fold_left build_automaton_handler defnames a_h_list
   | EQempty ->  defnames
   | EQassert _ -> defnames
-                
+
 and build_vardec defnames { desc = { var_name } } = S.add var_name defnames
 
 and buildpat defnames { desc; loc } =
   List.fold_left
     (fun acc x ->
-      if S.mem x acc then Error.error loc (Enon_linear_pat(x)); S.add x defnames)
+       if S.mem x acc then Error.error loc (Enon_linear_pat(x)); S.add x defnames)
     defnames desc
 
 and build_match_handler defnames { desc = { m_pat; m_vars; m_body } } =
@@ -103,12 +104,12 @@ and build_match_handler defnames { desc = { m_pat; m_vars; m_body } } =
 and build_state_name acc { desc; loc } =
   match desc with
   | Estate0pat(n) | Estate1pat(n, _) ->
-     if Env.mem n acc then Error.error loc (Error.Enon_linear_automaton(n));
-     let m = fresh n in
-     Env.add n m acc
+    if Env.mem n acc then Error.error loc (Error.Enon_linear_automaton(n));
+    let m = fresh n in
+    Env.add n m acc
 
 and build_automaton_handler defnames
-  { desc = { s_vars; s_body; s_until; s_unless } } =
+    { desc = { s_vars; s_body; s_until; s_unless } } =
   let defnames_s_vars = List.fold_left build_vardec S.empty s_vars in
   let defnames_s_body = buildeq S.empty s_body in
   let defnames_s_trans =
@@ -125,11 +126,11 @@ and build_escape defnames { desc = { e_vars; e_body } } =
 let buildeq eq =
   let defnames = buildeq S.empty eq in
   S.fold (fun s acc -> let m = fresh s in Env.add s m acc) defnames Env.empty
-  
+
 let buildpat p =
   let defnames = buildpat S.empty p in
   S.fold (fun s acc -> let m = fresh s in Env.add s m acc) defnames Env.empty
-               
+
 let empty =
   let module S = Set.Make (Ident) in
   S.empty
@@ -142,7 +143,7 @@ let constant c =
   | Evoid -> Ast.Evoid
   | Estring(s) -> Ast.Estring(s)
   | Echar(c) -> Ast.Echar(c)
-                
+
 (* synchronous operators *)
 let operator op =
   match op with
@@ -159,7 +160,7 @@ let lident ln =
 let pattern { desc; loc } =
   let desc = match desc with
     | Econstr0pat(f) -> Ast.Econstr0pat(lident f) in
-    { Ast.desc = desc; Ast.loc = loc }, Env.empty
+  { Ast.desc = desc; Ast.loc = loc }, Env.empty
 
 (* [env_pat] is the environment for names that appear on the *)
 (* left of a definition. [env] is for names that appear on the right *)
@@ -167,52 +168,52 @@ let rec equation env_pat env { desc; loc } =
   let eq_desc =
     match desc with
     | EQeq(pat, e) ->
-       let pat = pateq env_pat pat in
-       let e = expression env e in
-       Ast.EQeq(pat, e)
+      let pat = pateq env_pat pat in
+      let e = expression env e in
+      Ast.EQeq(pat, e)
     | EQreset(eq, e) ->
-       let eq = equation env_pat env eq in
-       let e = expression env e in
-       Ast.EQreset(eq, e)
+      let eq = equation env_pat env eq in
+      let e = expression env e in
+      Ast.EQreset(eq, e)
     | EQand(and_eq_list) ->
-       let and_eq_list = List.map (equation env_pat env) and_eq_list in
-       Ast.EQand(and_eq_list)
+      let and_eq_list = List.map (equation env_pat env) and_eq_list in
+      Ast.EQand(and_eq_list)
     | EQlocal(v_list, eq) ->
-       let v_list, env_v_list = Misc.mapfold (vardec env) Env.empty v_list in
-       let env_pat = Env.append env_v_list env_pat in
-       let env = Env.append env_v_list env in
-       let eq = equation env_pat env eq in
-       Ast.EQlocal(v_list, eq)
+      let v_list, env_v_list = Misc.mapfold (vardec env) Env.empty v_list in
+      let env_pat = Env.append env_v_list env_pat in
+      let env = Env.append env_v_list env in
+      let eq = equation env_pat env eq in
+      Ast.EQlocal(v_list, eq)
     | EQif(e, eq1, eq2) ->
-       let e = expression env e in
-       let eq1 = equation env_pat env eq1 in
-       let eq2 = equation env_pat env eq2 in
-       Ast.EQif(e, eq1, eq2)
+      let e = expression env e in
+      let eq1 = equation env_pat env eq1 in
+      let eq2 = equation env_pat env eq2 in
+      Ast.EQif(e, eq1, eq2)
     | EQmatch(e, m_h_list) ->
-       let e = expression env e in
-       let m_h_list = List.map (match_handler env_pat env) m_h_list in
-       Ast.EQmatch(e, m_h_list)
+      let e = expression env e in
+      let m_h_list = List.map (match_handler env_pat env) m_h_list in
+      Ast.EQmatch(e, m_h_list)
     | EQautomaton(a_h_list) ->
-       let is_weak, is_strong =
-         List.fold_left
-           (fun (is_weak, is_strong)
-	        { desc = { s_until; s_unless } } ->
-	     is_weak || (s_until <> []), is_strong || (s_unless <> []))
-           (false, false) a_h_list in
-       if is_weak && is_strong
-       then Error.error loc (Error.Eautomaton_with_mixed_transitions)
-       else
-         let env_for_states =
-           (* build the association table for state names *)
-           List.fold_left
-             (fun acc { desc = { s_state } } -> build_state_name acc s_state)
-             Env.empty a_h_list in
-         let a_h_list =
-           List.map
-             (automaton_handler is_weak env_for_states env_pat env) a_h_list in
-         Ast.EQautomaton(is_weak, a_h_list)
+      let is_weak, is_strong =
+        List.fold_left
+          (fun (is_weak, is_strong)
+            { desc = { s_until; s_unless } } ->
+            is_weak || (s_until <> []), is_strong || (s_unless <> []))
+          (false, false) a_h_list in
+      if is_weak && is_strong
+      then Error.error loc (Error.Eautomaton_with_mixed_transitions)
+      else
+        let env_for_states =
+          (* build the association table for state names *)
+          List.fold_left
+            (fun acc { desc = { s_state } } -> build_state_name acc s_state)
+            Env.empty a_h_list in
+        let a_h_list =
+          List.map
+            (automaton_handler is_weak env_for_states env_pat env) a_h_list in
+        Ast.EQautomaton(is_weak, a_h_list)
     | EQempty ->
-       Ast. EQempty
+      Ast. EQempty
     | EQassert(e) -> Ast.EQassert(expression env e) in
   (* set the names defined in the equation *)
   { Ast.eq_desc = eq_desc; Ast.eq_write = empty; Ast.eq_loc = loc }
@@ -222,11 +223,11 @@ and vardec env acc { desc = { var_name; var_default }; loc } =
   let var_default =
     match var_default with
     | Ewith_init(e) ->
-       let e = expression env e in
-       Ast.Ewith_init(e)
+      let e = expression env e in
+      Ast.Ewith_init(e)
     | Ewith_default(e) ->
-       let e = expression env e in
-       Ast.Ewith_default(e)
+      let e = expression env e in
+      Ast.Ewith_default(e)
     | Ewith_nothing -> Ast.Ewith_nothing
     | Ewith_last -> Ast.Ewith_last in
   let m = Ident.fresh var_name in
@@ -236,42 +237,42 @@ and vardec env acc { desc = { var_name; var_default }; loc } =
 and state env_for_states env { desc; loc } =
   let desc = match desc with
     | Estate0(f) ->
-       let f = try Env.find f env_for_states 
-               with | Not_found -> Error.error loc (Error.Evar(f)) in
-       Ast.Estate0(f)
-  | Estate1(f, e_list) ->
-     let f = try Env.find f env_for_states 
-             with | Not_found -> Error.error loc (Error.Evar(f)) in
-     let e_list = List.map (expression env) e_list in
-     Estate1(f, e_list) in
+      let f = try Env.find f env_for_states
+        with | Not_found -> Error.error loc (Error.Evar(f)) in
+      Ast.Estate0(f)
+    | Estate1(f, e_list) ->
+      let f = try Env.find f env_for_states
+        with | Not_found -> Error.error loc (Error.Evar(f)) in
+      let e_list = List.map (expression env) e_list in
+      Estate1(f, e_list) in
   { Ast.desc = desc; Ast.loc = loc }
 
 and statepat env_pat { desc; loc } =
   let desc, acc = match desc with
     | Estate0pat(f) ->
-       let fm = try Env.find f env_pat
-                with | Not_found -> Error.error loc (Error.Evar(f)) in
-       Ast.Estate0pat(fm), Env.empty
+      let fm = try Env.find f env_pat
+        with | Not_found -> Error.error loc (Error.Evar(f)) in
+      Ast.Estate0pat(fm), Env.empty
     | Estate1pat(f, n_list) ->
-       let fm = try Env.find f env_pat
-                with | Not_found -> Error.error loc (Error.Evar(f)) in
-       let n_list, acc =
-         Misc.mapfold
-           (fun acc n -> let m = Ident.fresh n in m, Env.add n m acc)
-           Env.empty n_list in
-     Estate1pat(fm, n_list), acc in
-{ Ast.desc = desc; Ast.loc = loc }, acc
+      let fm = try Env.find f env_pat
+        with | Not_found -> Error.error loc (Error.Evar(f)) in
+      let n_list, acc =
+        Misc.mapfold
+          (fun acc n -> let m = Ident.fresh n in m, Env.add n m acc)
+          Env.empty n_list in
+      Estate1pat(fm, n_list), acc in
+  { Ast.desc = desc; Ast.loc = loc }, acc
 
 and pateq env_pat { desc; loc } =
   let desc =
     List.map
       (fun x ->
-        try Env.find x env_pat
-        with | Not_found -> Error.error loc (Error.Evar(x))) desc
+         try Env.find x env_pat
+         with | Not_found -> Error.error loc (Error.Evar(x))) desc
   in { Ast.desc = desc; Ast.loc = loc }
-   
+
 and automaton_handler is_weak env_for_states env_pat env
-  { desc = { s_state; s_vars; s_body; s_until; s_unless }; loc } =
+    { desc = { s_state; s_vars; s_body; s_until; s_unless }; loc } =
   let s_state, env_s_state = statepat env_for_states s_state in
   let env = Env.append env_s_state env in
   let s_vars, env_s_vars = Misc.mapfold (vardec env) Env.empty s_vars in
@@ -285,7 +286,7 @@ and automaton_handler is_weak env_for_states env_pat env
     Ast.s_body = s_body; Ast.s_trans = s_trans; Ast.s_loc = loc }
 
 and escape env_for_states env_pat env
-  { desc = { e_reset; e_cond; e_vars; e_body; e_next_state }; loc } = 
+    { desc = { e_reset; e_cond; e_vars; e_body; e_next_state }; loc } =
   let e_cond, env_e_cond = scondpat env Env.empty e_cond in
   let env = Env.append env_e_cond env in
   let e_vars, env_e_vars = Misc.mapfold (vardec env) Env.empty e_vars in
@@ -297,8 +298,8 @@ and escape env_for_states env_pat env
     Ast.e_body = e_body; Ast.e_next_state = e_next_state; Ast.e_loc = loc }
 
 and scondpat env acc e_cond = expression env e_cond, acc
-          
-and match_handler env_pat env { desc = { m_pat; m_vars; m_body }; loc } = 
+
+and match_handler env_pat env { desc = { m_pat; m_vars; m_body }; loc } =
   let m_pat, env_m_pat = pattern m_pat in
   let env = Env.append env_m_pat env in
   let m_vars, env_m_vars = Misc.mapfold (vardec env) Env.empty m_vars in
@@ -308,44 +309,44 @@ and match_handler env_pat env { desc = { m_pat; m_vars; m_body }; loc } =
   { Ast.m_pat = m_pat; Ast.m_vars = m_vars;
     Ast.m_body = m_body; Ast.m_loc = loc }
 
-  
+
 and expression env { desc; loc } =
   let desc =
     match desc with
     | Evar(Name(n)) ->
-       begin try
-           let m = Env.find n env in
-           Ast.Elocal(m)
-         with
-         | Not_found -> Ast.Eglobal(Name(n))
-       end
+      begin try
+          let m = Env.find n env in
+          Ast.Elocal(m)
+        with
+        | Not_found -> Ast.Eglobal(Name(n))
+      end
     | Evar(Modname _ as ln) -> Ast.Eglobal(lident ln)
     | Econst(c) -> Ast.Econst(constant c)
     | Econstr0(f) -> Ast.Econstr0(lident f)
     | Econstr1(f, e_list) ->
-       Ast.Econstr1(lident f, List.map (expression env) e_list)
+      Ast.Econstr1(lident f, List.map (expression env) e_list)
     | Elast(x) ->
-       let x = try Env.find x env
-               with | Not_found -> Error.error loc (Error.Evar(x)) in
-       Ast.Elast(x)
+      let x = try Env.find x env
+        with | Not_found -> Error.error loc (Error.Evar(x)) in
+      Ast.Elast(x)
     | Eop(op, e_list) ->
-       let e_list = List.map (expression env) e_list in
-       Ast.Eop(operator op, e_list)
+      let e_list = List.map (expression env) e_list in
+      Ast.Eop(operator op, e_list)
     | Etuple(e_list) ->
-       let e_list = List.map (expression env) e_list in
-       Etuple(e_list)
+      let e_list = List.map (expression env) e_list in
+      Etuple(e_list)
     | Elet(is_rec, eq, e) ->
-       let env_pat = buildeq eq in
-       let env_let = Env.append env_pat env in
-       let eq = equation env_pat (if is_rec then env_let else env) eq in
-       let e = expression env_let e in
-       Elet(is_rec, eq, e)
+      let env_pat = buildeq eq in
+      let env_let = Env.append env_pat env in
+      let eq = equation env_pat (if is_rec then env_let else env) eq in
+      let e = expression env_let e in
+      Elet(is_rec, eq, e)
     | Eget(i, e) ->
-       let e = expression env e in
-       Eget(i, e)
+      let e = expression env e in
+      Eget(i, e)
     | Eapp(f, e_list) ->
-       let e_list = List.map (expression env) e_list in
-       Eapp(lident f, e_list) in
+      let e_list = List.map (expression env) e_list in
+      Eapp(lident f, e_list) in
   { Ast.e_desc = desc; Ast.e_loc = loc }
 
 let kind = function Efun -> Ast.Efun | Enode -> Ast.Enode
@@ -361,29 +362,29 @@ let funexp { desc = { f_kind; f_atomic; f_args; f_res; f_body }; loc } =
 (* type declarations. *)
 let rec type_decl { desc; loc } =
   let desc = match desc with
-  | Evariant_type(constr_decl_list) ->
+    | Evariant_type(constr_decl_list) ->
       Ast.Evariant_type(List.map constr_decl constr_decl_list) in
   { Ast.desc = desc; Ast.loc = loc }
 
 and constr_decl { desc; loc } =
   let desc = match desc with
-  | Econstr0decl(n) -> Ast.Econstr0decl(n) in
+    | Econstr0decl(n) -> Ast.Econstr0decl(n) in
   { Ast.desc = desc; Ast.loc = loc }
-      
+
 let implementation { desc; loc } =
   try
     let desc = match desc with
       | Eletdecl(f, e) ->
-         let e = expression Env.empty e in
-         Ast.Eletdecl(f, e)
+        let e = expression Env.empty e in
+        Ast.Eletdecl(f, e)
       | Eletfundecl(f, fd) ->
-         let fd = funexp fd in
-         Ast.Eletfundecl(f, fd)
+        let fd = funexp fd in
+        Ast.Eletfundecl(f, fd)
       | Etypedecl(f, td) ->
-         let td = type_decl td in
-         Ast.Etypedecl(f, td) in
+        let td = type_decl td in
+        Ast.Etypedecl(f, td) in
     { Ast.desc = desc; Ast.loc = loc }
   with
     Error.Err(loc, kind) -> Error.message loc kind
-                          
+
 let program i_list = List.map implementation i_list

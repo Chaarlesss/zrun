@@ -1,0 +1,11 @@
+
+(library
+ (name interpreter)
+ (flags
+  (:standard
+    -open Ibase))
+ (libraries ibase))
+
+(env
+ (dev
+  (flags (:standard -w -9-27-32-33-35 -warn-error -A))))
