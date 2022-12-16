@@ -6,11 +6,11 @@ open AbstractValue
 
 module Make(D: AbstractDomain.S) = struct
 
-  let find_gnode_opt x env =
+  let find_gnode x env =
     let v = Map.find env x in
     match v with
     | Some(Gfun(f)) -> return f
-    | _ -> failwith ("unknown node : " ^ (Lident.modname x))
+    | _ -> fail (Unknown_node x)
 
   let fixpoint n stop f s bot =
     let rec fixpoint n d_el =
@@ -65,7 +65,7 @@ module Make(D: AbstractDomain.S) = struct
               (fun env ->
                  let* env, s = s env in
                  let init_fby_var = create_var "fby" in
-                 let* env = D.assign [init_fby_var] e env in
+                 let* env = D.assign init_fby_var e env in
                  return
                    (env, AStuple [ASval (AVident init_fby_var); s])
               )
@@ -76,7 +76,7 @@ module Make(D: AbstractDomain.S) = struct
         return (fun env -> s env)
       | Eapp(f, e_list) ->
         let* s_list = List.map_result ~f:(iexp genv) e_list in
-        let* v = find_gnode_opt f genv in
+        let* v = find_gnode f genv in
         let* s =
           match v with
           | ACoFun _ ->
@@ -125,14 +125,32 @@ module Make(D: AbstractDomain.S) = struct
     | Ewith_nothing -> (fun env -> return (env, ASempty)) |> return
     | Ewith_last -> assert false
 
-  let svardec genv d_el { var_name; var_default; var_loc } s e =
+  let rec matching_pateq d_el { desc } exp =
+    match desc, exp with
+    | [x], _ -> D.assign x exp d_el
+    (* | x_list, exp -> matching_list d_el x_list exp*)
+    | _ -> fail Generic_alarm
+
+  and matching_list d_el x_list exp_list =
+    assert false
+
+  let seq genv d_el { eq_desc; eq_write; eq_loc } s =
+    let r = match eq_desc, s with
+      | EQeq(p, e), s ->
+
+        matching_pateq d_el p e
+      | _ -> assert false
+    in
+    report eq_loc r
+
+  and svardec genv d_el { var_name; var_default; var_loc } s e =
     assert false
 
   let declare_arg env { var_name; var_default } exp =
-    D.assign [var_name] exp env
+    D.assign var_name exp env
 
   let remove_arg env { var_name; var_default } =
-    D.remove [var_name] env
+    D.remove var_name env
 
   let mk_return env f_res f_loc =
     let rec aux env out_l return_l =
@@ -140,13 +158,12 @@ module Make(D: AbstractDomain.S) = struct
       | [], _ -> return env
       | _, [] -> fail Generic_alarm
       | arg :: out_l, return_ident :: return_l ->
-        let* env = D.assign [return_ident] { e_desc= Elocal arg.var_name; e_loc= arg.var_loc } env in
+        let* env = D.assign return_ident { e_desc= Elocal arg.var_name; e_loc= arg.var_loc } env in
         aux env out_l return_l
     in
     aux env f_res return_idents
 
   let funexp genv { f_kind; f_atomic; f_args; f_res; f_body; f_loc } =
-    (* ieq should return a function from the denv to another env *)
     let* si = ieq genv f_body in
     let f = match f_kind with
       | Efun ->
@@ -160,7 +177,8 @@ module Make(D: AbstractDomain.S) = struct
                     declare_arg
                     d_el f_args exp_list
                 in
-                (* TODO: seq *)
+                let* d_el, si = si d_el in
+                let* d_el = seq genv d_el f_body si in
                 let* d_el = mk_return d_el f_res f_loc in
                 let* d_el =
                   List.fold_result
@@ -180,25 +198,13 @@ module Make(D: AbstractDomain.S) = struct
                init =
                  (fun d_el ->
                     let* d_el, s_f_args =
-                      List.fold_result
-                        ~init:(d_el, [])
-                        ~f:(fun (d_el, l) s ->
-                            let* d_el, h = s d_el in
-                            return (d_el, h :: l)
-                          )
-                        s_f_args
+                      List.mapfold_result
+                        ~init:d_el ~f:(|>) s_f_args
                     in
-                    let s_f_args = List.rev s_f_args in
                     let* d_el, s_f_res =
-                      List.fold_result
-                        ~init:(d_el, [])
-                        ~f:(fun (d_el, l) s ->
-                            let* d_el, h = s d_el in
-                            return (d_el, h :: l)
-                          )
-                        s_f_res
+                      List.mapfold_result
+                        ~init:d_el ~f:(|>) s_f_res
                     in
-                    let s_f_res = List.rev s_f_res in
                     let* d_el, si = si d_el in
                     return
                       (d_el, AStuple [AStuple s_f_args; AStuple s_f_res; si])
@@ -207,18 +213,27 @@ module Make(D: AbstractDomain.S) = struct
                  (fun s d_el exp_list ->
                     match s with
                     | AStuple [AStuple s_f_args; AStuple s_f_res; s_body] ->
-                      let* d_el, s_f_args =
-                        List.mapfold3_result
+                      let* d_el =
+                        List.fold3_result
                           ~init:d_el ~error:Generic_alarm
                           ~f:(svardec genv)
                           f_args s_f_args exp_list
                       in
                       (* initialize s_f_res depending on what is stored in the state *)
-                      (*let* d_body, s_body =
-                        fixpoint_eq genv d_el seq f_body n s_body
-                        in*)
-                      failwith "a implementer"
-                    | _ -> fail Generic_alarm
+                      (* solve fixpoint equation *)
+                      let* d_el =
+                        fixpoint_eq genv d_el seq f_body 20 s_body D.bottom
+                      in
+                      (* TODO: change value of states variables *)
+                      let* d_el = mk_return d_el f_res f_loc in
+                      let* d_el =
+                        List.fold_result
+                          ~init:d_el
+                          ~f:remove_arg
+                          (List.append f_args f_res)
+                      in
+                      return d_el
+                    | _ -> fail Invalid_astate
                  )
              })
     in
@@ -236,33 +251,48 @@ module Make(D: AbstractDomain.S) = struct
         return genv
     in
     let genv0 =
-      let plus_fun = Gfun(ACoFun (fun (_: D.t) _ -> fail Generic_alarm)) in
+      let plus_fun = Gfun(ACoFun
+                            (fun (_: D.t) exp_list -> failwith "\"+\" operator not yet implemented")
+                         )
+      in
       Map.singleton (module Lident.M) (Name "+") plus_fun
     in
     let genv = genv0 in
     List.fold_result ~f ~init:genv i_list
 
-  let run_node output init step d_el n: int =
-    let rec runrec s d_el i =
-      if i = n then i
+  let run_node output init step d_el n =
+    let rec runrec s d_el i: int =
+      if i = n then
+        let _ =
+          let* sd_el = step s d_el [] in
+          let* d_el = D.widen d_el sd_el in
+          output d_el
+        in
+        i
       else
         let v =
           let* sd_el = step s d_el [] in
-          let* d_el = D.join d_el sd_el in
-          let* _ = output d_el in
-          return s in
+          let* sd_el = D.join d_el sd_el in
+          let* stop = D.is_subset sd_el d_el in
+          let* _ = output sd_el in
+          return (d_el, stop)
+        in
         match v with
         | Error _ -> i
-        | Ok s -> runrec s d_el (i+1)
+        | Ok (d_el, true) ->
+          Caml.print_string "Reached fixpoint, stopping...\n";
+          i
+        | Ok (d_el, false) -> runrec s d_el (i + 1)
     in
     match init d_el with
     | Error err -> failwith "initialization failed"
     | Ok (d_el, s) -> runrec s d_el 0
 
   let run genv main ff =
-    let* fv = find_gnode_opt (Name main) genv in
+    let* fv = find_gnode (Name main) genv in
     let output d_el =
       let _ = D.pp ff d_el in
+      let _ = Caml.Format.pp_print_newline ff () in
       return ()
     in
     match fv with

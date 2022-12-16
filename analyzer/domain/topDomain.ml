@@ -18,13 +18,15 @@ let join (_: t) (_: t) = return Top
 
 let meet (_: t) (_: t) = return Top
 
+let widen (_: t) (_: t) = return Top
+
 let guard (_: exp) (_: t) = return Top
 
-let assign (_: Ident.t list) (_: exp) (_: t) = return Top
+let assign (_: Ident.t) (_: exp) (_: t) = return Top
 
-let remove (_: Ident.t list) (_: t) = return Top
+let remove (_: Ident.t) (_: t) = return Top
 
 let check (_: exp) (_: t) = return Top
 
-let pp formatter (_: t) =
-  Caml.Format.pp_print_string formatter "_|_"
+let pp ff (_: t) =
+  Format.pp_print_string ff "T"

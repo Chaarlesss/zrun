@@ -6,6 +6,8 @@ type analyzer_alarm = ..
 
 type analyzer_alarm +=
   | Generic_alarm
+  | Unknown_node of Lident.t
+  | Invalid_astate
   | Invalid_main of name
   | Invalid_args_size
 

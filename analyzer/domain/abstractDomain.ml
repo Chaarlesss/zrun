@@ -19,11 +19,14 @@ sig
 
   val meet: t -> t -> (t, analyzer_alarm) Result.t
 
+  (* add a generic widening context? *)
+  val widen: t -> t -> (t, analyzer_alarm) Result.t
+
   val guard: exp -> t -> (t, analyzer_alarm) Result.t
 
-  val assign: Ident.t list -> exp -> t -> (t, analyzer_alarm) Result.t
+  val assign: Ident.t -> exp -> t -> (t, analyzer_alarm) Result.t
 
-  val remove: Ident.t list -> t -> (t, analyzer_alarm) Result.t
+  val remove: Ident.t -> t -> (t, analyzer_alarm) Result.t
 
   (* when an assert is called *)
   val check: exp -> t -> (t, analyzer_alarm) Result.t

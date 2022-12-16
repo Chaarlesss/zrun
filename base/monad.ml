@@ -212,13 +212,29 @@ module List = struct
   open Result
   include Base.List
 
-  let rec map_result x_list ~f : ('b list, 'c) Result.t =
+  let rec map_result x_list ~f =
     match x_list with
     | [] -> Result.return []
     | x :: x_list ->
       let* xv = f x in
       let* x_list = map_result x_list ~f in
       Result.return (xv :: x_list)
+
+  let rec mapfold_result x_list ~f ~init:acc =
+    match x_list with
+    | [] -> Result.return (acc, [])
+    | x :: x_list ->
+      let* acc, xv = f acc x in
+      let* acc, xv_list = mapfold_result x_list ~f ~init:acc in
+      Result.return (acc, xv :: xv_list)
+
+  let rec fold3_result x_list y_list z_list ~f ~init:acc ~error =
+    match x_list, y_list, z_list with
+    | [], [], [] -> Result.return acc
+    | x :: x_list, y :: y_list, z :: z_list ->
+      let* acc = f acc x y z in
+      fold3_result ~f ~init:acc ~error x_list y_list z_list
+    | _ -> fail error
 
   let rec mapfold3_result x_list y_list z_list ~f ~init:acc ~error =
     match x_list, y_list, z_list with
