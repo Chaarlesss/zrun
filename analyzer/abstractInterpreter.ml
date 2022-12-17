@@ -1,6 +1,6 @@
 open Ibase.Monad
 open Result
-open Ast
+open AbstractSyntax
 open Alarm
 open AbstractValue
 
@@ -56,56 +56,56 @@ module Make(D: AbstractDomain.S) = struct
              let l = List.rev l in
              return (env, AStuple l)
           )
-      | Eop(op, e_list) ->
-        begin
-          match op, e_list with
-          | Efby, [{ e_desc= Econst(v) } as e; e_l] ->
-            let* s = iexp genv e_l in
-            return
-              (fun env ->
-                 let* env, s = s env in
-                 let init_fby_var = create_var "fby" in
-                 let* env = D.assign init_fby_var e env in
-                 return
-                   (env, AStuple [ASval (AVident init_fby_var); s])
-              )
-          | _ -> fail Generic_alarm
-        end
-      | Eget(_, e) ->
-        let* s = iexp genv e in
-        return (fun env -> s env)
-      | Eapp(f, e_list) ->
-        let* s_list = List.map_result ~f:(iexp genv) e_list in
-        let* v = find_gnode f genv in
-        let* s =
-          match v with
-          | ACoFun _ ->
-            return (fun env -> return (env, ASempty))
-          | ACoNode { init = s } -> return s
-        in
-        return
-          (fun env ->
-             let* env, l =
-               List.fold_result
-                 ~f:(fun (env, l) s ->
-                     let* env, h = s env in
-                     return (env, h :: l)
-                   )
-                 ~init:(env, []) s_list
-             in
-             let l = List.rev l in
-             let* env, s = s env in
-             return (env, AStuple (s :: l))
-          )
-      | Elet(is_rec, eq, e) ->
-        let* s_eq = ieq genv eq in
-        let* se = iexp genv e in
-        return
-          (fun env ->
-             let* env, s_eq = s_eq env in
-             let* env, se = se env in
-             return (env, AStuple [s_eq; se])
-          )
+      (*  | Eop(op, e_list) ->
+          begin
+            match op, e_list with
+            | Efby, [{ e_desc= Econst(v) } as e; e_l] ->
+              let* s = iexp genv e_l in
+              return
+                (fun env ->
+                   let* env, s = s env in
+                   let init_fby_var = create_var "fby" in
+                   let* env = D.assign init_fby_var e env in
+                   return
+                     (env, AStuple [ASval (AVident init_fby_var); s])
+                )
+            | _ -> fail Generic_alarm
+          end
+          | Eget(_, e) ->
+          let* s = iexp genv e in
+          return (fun env -> s env)
+          | Eapp(f, e_list) ->
+          let* s_list = List.map_result ~f:(iexp genv) e_list in
+          let* v = find_gnode f genv in
+          let* s =
+            match v with
+            | ACoFun _ ->
+              return (fun env -> return (env, ASempty))
+            | ACoNode { init = s } -> return s
+          in
+          return
+            (fun env ->
+               let* env, l =
+                 List.fold_result
+                   ~f:(fun (env, l) s ->
+                       let* env, h = s env in
+                       return (env, h :: l)
+                     )
+                   ~init:(env, []) s_list
+               in
+               let l = List.rev l in
+               let* env, s = s env in
+               return (env, AStuple (s :: l))
+            )
+          | Elet(is_rec, eq, e) ->
+          let* s_eq = ieq genv eq in
+          let* se = iexp genv e in
+          return
+            (fun env ->
+               let* env, s_eq = s_eq env in
+               let* env, se = se env in
+               return (env, AStuple [s_eq; se])
+            )*)
       | _ -> fail Generic_alarm
     in
     report e_loc r
@@ -113,19 +113,19 @@ module Make(D: AbstractDomain.S) = struct
   and ieq genv { eq_desc; eq_loc }: ('a, 'b) Result.t =
     let r = match eq_desc with
       | EQeq(_, e) -> iexp genv e
-      | _ -> assert false
+      | _ -> fail Generic_alarm
     in
     report eq_loc r
 
   and ivardec genv { var_default; var_loc } =
     match var_default with
-    | Ewith_init(e) ->
-      assert false
-    | Ewith_default(e) -> assert false
+    (*  | Ewith_init(e) ->
+        assert false
+        | Ewith_default(e) -> assert false *)
     | Ewith_nothing -> (fun env -> return (env, ASempty)) |> return
-    | Ewith_last -> assert false
+  (* | Ewith_last -> assert false *)
 
-  let rec matching_pateq d_el { desc } exp =
+  let rec matching_pateq d_el ({ desc }: pateq) exp =
     match desc, exp with
     | [x], _ -> D.assign x exp d_el
     (* | x_list, exp -> matching_list d_el x_list exp*)
@@ -240,15 +240,16 @@ module Make(D: AbstractDomain.S) = struct
     report f_loc f
 
   let init _ i_list =
-    let f genv { desc; loc} =
+    let i_list = AstTransformer.transform_program i_list in
+    let f genv ({ desc; loc}: implementation) =
       match desc with
-      | Eletdecl(f, e) ->
-        assert false
+      (*  | Eletdecl(f, e) ->
+          assert false *)
       | Eletfundecl(f, fd) ->
         let* fv = funexp genv fd in
-        return (Map.set genv ~key:(Name f) ~data:(Gfun(fv)))
-      | Etypedecl(f, td) ->
-        return genv
+        return (Map.set genv ~key:(Lident.Name f) ~data:(Gfun(fv)))
+        (* | Etypedecl(f, td) ->
+           return genv *)
     in
     let genv0 =
       let plus_fun = Gfun(ACoFun

@@ -48,7 +48,7 @@ let parse_implementation_file source_name =
 let analyze p main =
   let open Result in
   let module D: AbstractDomain.S = TopDomain in
-  let module AI = AbstractInterpreter.Make(TopDomain) in
+  let module AI = AbstractInterpreter.Make(D) in
   let* value = AI.init [] p in
   Debug.print_message "Evaluation of definitions done";
   let* r =

@@ -1,4 +1,4 @@
-open Ast
+open AbstractSyntax
 open Alarm
 
 module type S =

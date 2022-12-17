@@ -1,4 +1,4 @@
-open Ast
+open AbstractSyntax
 open Alarm
 
 let aux_var_counter = ref 0
@@ -8,6 +8,7 @@ let create_var s =
   let id = fresh_aux_var () in
   Ident.fresh ("$_" ^ s ^ "_$" ^ (Int.to_string id))
 
+(* will be removed *)
 let return_idents =
   let rec aux n acc =
     match n with
