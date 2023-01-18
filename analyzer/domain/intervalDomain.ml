@@ -345,6 +345,15 @@ module Interval = struct
 
   and bwd_sync_binary op i1 i2 r = match op with Fby -> (bwd_fby i1 i2 r)
 
+ let widen i1 i2 = 
+    return 
+    (match i1 i2 with 
+    |Empty, _ | _,Empty -> Empty
+    | Interval(a1,b1),Interval(a2,b2) -> let a = (if lt a2 a1 then MInf else a1) in
+                                         let b = (if lt b2 b1 then PInf else b1) in
+                                         Interval(a,b))
+                                              
+    
   let well_formed = function
     | Interval (a, b) ->
         if not (leq a b) then
